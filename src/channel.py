@@ -829,7 +829,7 @@ class ChannelBreakOut:
                 logging.info("position : None")
 
             # インジケータを追加
-            logging.info(self.lineIndicator(lastPositionPrice, lastPrice, closeHighLine[-1], closeLowLine[-1], pos))
+            logging.info(self.lineIndicator(lastPositionPrice, lastPrice, closeLowLine[-1], closeHighLine[-1], pos))
             
             #ここからエントリー，クローズ処理
             if pos == 0 and not isRange[-1] and serverHealth:
