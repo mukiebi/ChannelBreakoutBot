@@ -166,6 +166,47 @@ class ChannelBreakOut:
     def mlMode(self, val):
         self._mlMode = val
 
+    def writeMLPattern(self, mlMode, candleTerm, entryTerm, closeTerm, rangePercent, rangePercentTerm, rangeTerm, rangeTh, waitTerm, waitTh, PL, trades, WIN, EV, PF, maxProfit, maxLoss):
+        file = 'log/mlpattern_{}.csv'.format(mlMode)
+        with open(file, 'a') as mlPatternFile:
+            mlPatternCSV = csv.writer(mlPatternFile, lineterminator='\n')
+            mlPatternCSV.writerow([mlMode, candleTerm, entryTerm, closeTerm, rangePercent, rangePercentTerm, rangeTerm, rangeTh, waitTerm, waitTh, PL, trades, WIN, EV, PF, maxProfit, maxLoss])
+
+    def lineIndicator(self, posPrice, lastPrice, closeLow, closeHigh, side, size = 20):
+        def insertChar(str, c, n):
+            return str[:n-1] + c + str[n:]
+
+        ratioPos  = ( posPrice - closeLow) / (closeHigh - closeLow)
+        ratioLast = (lastPrice - closeLow) / (closeHigh - closeLow)
+        overload = 1 if ratioLast > 1 else -1 if ratioLast < 0 else 0
+        posPos  = max(1, min(size, int(ratioPos  * size)))
+        posLast = max(1, min(size, int(ratioLast * size)))
+
+        if side == 0:
+            markPos = '-'
+        else:
+            markPos = '|'
+        
+        if side == 0:
+            markLast = '*'
+        elif side == 1:
+            markLast = 'o' if ratioPos < ratioLast else 'x'
+        elif side == -1:
+            markLast = 'x' if ratioLast < ratioPos else 'o'
+
+        line = '-' * size
+        line = insertChar(line, markPos, posPos)
+        if overload == 0:
+            line = '[' + insertChar(line, markLast, posLast) + ']'
+        elif overload == 1:
+            line = '[' + line + ']' + markLast
+        elif overload == -1:
+            line = markLast + '[' + line + ']'
+        
+        line = '{} {} {}'.format(closeLow, line, closeHigh)
+
+        return line
+
     def calculateLot(self, margin):
         """
         証拠金からロットを計算する関数．
@@ -178,12 +219,6 @@ class ChannelBreakOut:
         with open('log/orderhistory.csv', 'a') as orderhistoryfile:
             orderhistorycsv = csv.writer(orderhistoryfile, lineterminator='\n')
             orderhistorycsv.writerow([datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), priceOrderd, lotOrderd, profitRange, currentPos ])
-
-    def writeMLPattern(self, mlMode, candleTerm, entryTerm, closeTerm, rangePercent, rangePercentTerm, rangeTerm, rangeTh, waitTerm, waitTh, PL, trades, WIN, EV, PF, maxProfit, maxLoss):
-        file = 'log/mlpattern_{}.csv'.format(mlMode)
-        with open(file, 'a') as mlPatternFile:
-            mlPatternCSV = csv.writer(mlPatternFile, lineterminator='\n')
-            mlPatternCSV.writerow([mlMode, candleTerm, entryTerm, closeTerm, rangePercent, rangePercentTerm, rangeTerm, rangeTh, waitTerm, waitTh, PL, trades, WIN, EV, PF, maxProfit, maxLoss])
 
     def calculateLines(self, df_candleStick, term, rangePercent, rangePercentTerm):
         """
@@ -778,16 +813,24 @@ class ChannelBreakOut:
 
             #ログ出力
             logging.info('high:%s low:%s isRange:%s', high, low, isRange[-1])
-            logging.info('entryHighLine:%s entryLowLine:%s', entryHighLine[-1], entryLowLine[-1])
-            logging.info('closeLowLine:%s closeHighLine:%s', closeLowLine[-1], closeHighLine[-1])
+            # logging.info('entryHighLine:%s entryLowLine:%s', entryHighLine[-1], entryLowLine[-1])
+            # logging.info('closeLowLine:%s closeHighLine:%s', closeLowLine[-1], closeHighLine[-1])
             logging.info('Server Health is:%s State is:%s', boardState["health"], boardState["state"])
+            lastPrice = (high + low) / 2
             if pos == 1:
-                logging.info('position : Long(Price:%s lot:%s)',lastPositionPrice,lot)
+                lastPL = int((lastPrice - lastPositionPrice) * lot)
+                confirmedPL = int((closeLowLine[-1] - lastPositionPrice) * lot)
+                logging.info('position : Long(Price:%s lot:%s pl:%s/%s)', lastPositionPrice, lot, lastPL, confirmedPL )
             elif pos == -1:
-                logging.info('position : Short(Price:%s lot:%s)',lastPositionPrice,lot)
+                lastPL = int((lastPositionPrice - lastPrice) * lot)
+                confirmedPL = int((lastPositionPrice - closeHighLine[-1]) * lot)
+                logging.info('position : Short(Price:%s lot:%s pl:%s/%s)', lastPositionPrice, lot, lastPL, confirmedPL )
             else:
                 logging.info("position : None")
 
+            # インジケータを追加
+            logging.info(self.lineIndicator(lastPositionPrice, lastPrice, closeHighLine[-1], closeLowLine[-1], pos))
+            
             #ここからエントリー，クローズ処理
             if pos == 0 and not isRange[-1] and serverHealth:
                 #ロングエントリー
