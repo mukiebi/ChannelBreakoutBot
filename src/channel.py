@@ -42,6 +42,7 @@ class ChannelBreakOut:
         self.rangePercent = None
         self.rangePercentTerm = None
         self._candleTerm = "1T"
+        self._mlMode = "PL"
         #現在のポジション．1ならロング．-1ならショート．0ならポジションなし．
         self._pos = 0
         #注文執行コスト．遅延などでこの値幅を最初から取られていると仮定する
@@ -158,6 +159,13 @@ class ChannelBreakOut:
     def closeTerm(self, val):
         self._closeTerm = int(val)
 
+    @property
+    def mlMode(self):
+        return self._mlMode
+    @mlMode.setter
+    def mlMode(self, val):
+        self._mlMode = val
+
     def calculateLot(self, margin):
         """
         証拠金からロットを計算する関数．
@@ -170,6 +178,12 @@ class ChannelBreakOut:
         with open('log/orderhistory.csv', 'a') as orderhistoryfile:
             orderhistorycsv = csv.writer(orderhistoryfile, lineterminator='\n')
             orderhistorycsv.writerow([datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), priceOrderd, lotOrderd, profitRange, currentPos ])
+
+    def writeMLPattern(self, mlMode, candleTerm, entryTerm, closeTerm, rangePercent, rangePercentTerm, rangeTerm, rangeTh, waitTerm, waitTh, PL, trades, WIN, EV, PF, maxProfit, maxLoss):
+        file = 'log/mlpattern_{}.csv'.format(mlMode)
+        with open(file, 'a') as mlPatternFile:
+            mlPatternCSV = csv.writer(mlPatternFile, lineterminator='\n')
+            mlPatternCSV.writerow([mlMode, candleTerm, entryTerm, closeTerm, rangePercent, rangePercentTerm, rangeTerm, rangeTh, waitTerm, waitTh, PL, trades, WIN, EV, PF, maxProfit, maxLoss])
 
     def calculateLines(self, df_candleStick, term, rangePercent, rangePercentTerm):
         """
@@ -502,6 +516,8 @@ class ChannelBreakOut:
                 profit = log[3] if len(log) > 3 else ''
                 logging.info("%s %s %s %s", log[0], log[1], log[2], profit)
             logging.info("============")
+
+        self.writeMLPattern(self.mlMode, self.candleTerm, self.entryTerm, self.closeTerm, self.rangePercent, self.rangePercentTerm, self.rangeTerm, self.rangeTh, self.waitTerm, self.waitTh, int(pl[-1]), nOfTrade, winPer, ev, profitFactor, maxProfit, maxLoss )
 
         return pl[-1], profitFactor, maxLoss, winPer, ev
 
