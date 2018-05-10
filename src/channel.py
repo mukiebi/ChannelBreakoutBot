@@ -192,7 +192,7 @@ class ChannelBreakOut:
         elif side == 1:
             markLast = 'o' if ratioPos < ratioLast else 'x'
         elif side == -1:
-            markLast = 'x' if ratioLast < ratioPos else 'o'
+            markLast = 'o' if ratioPos > ratioLast else 'x'
 
         line = '-' * size
         line = insertChar(line, markPos, posPos)
