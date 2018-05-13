@@ -172,37 +172,40 @@ class ChannelBreakOut:
             mlPatternCSV = csv.writer(mlPatternFile, lineterminator='\n')
             mlPatternCSV.writerow([mlMode, candleTerm, entryTerm, closeTerm, rangePercent, rangePercentTerm, rangeTerm, rangeTh, waitTerm, waitTh, PL, trades, WIN, EV, PF, maxProfit, maxLoss])
 
-    def lineIndicator(self, posPrice, lastPrice, closeLow, closeHigh, side, size = 20):
+    def lineIndicator(self, positionPrice, lastPrice, closeLow, closeHigh, side, size = 20):
         def insertChar(str, c, n):
             return str[:n-1] + c + str[n:]
 
-        ratioPos  = ( posPrice - closeLow) / (closeHigh - closeLow)
-        ratioLast = (lastPrice - closeLow) / (closeHigh - closeLow)
-        overload = 1 if ratioLast > 1 else -1 if ratioLast < 0 else 0
+        limitLow  = min(positionPrice, lastPrice, closeLow, closeHigh)
+        limitHigh = max(positionPrice, lastPrice, closeLow, closeHigh)
+
+        delta = limitHigh - limitLow
+        ratioPos  = (positionPrice - limitLow) / delta
+        ratioLast = (    lastPrice - limitLow) / delta
+        ratioCloseLow  = (closeLow  - limitLow) / delta
+        ratioCloseHigh = (closeHigh - limitLow) / delta
+
         posPos  = max(1, min(size, int(ratioPos  * size)))
         posLast = max(1, min(size, int(ratioLast * size)))
-
-        if side == 0:
-            markPos = '-'
-        else:
-            markPos = '|'
+        posLow  = max(1, min(size, int(ratioCloseLow  * size)))
+        posHigh = max(1, min(size, int(ratioCloseHigh * size)))
         
         if side == 0:
+            markPos = '-'
             markLast = '*'
         elif side == 1:
-            markLast = 'o' if ratioPos < ratioLast else 'x'
+            markPos = '|'
+            markLast = '$' if positionPrice < closeLow else 'o' if ratioPos < ratioLast else 'x'
         elif side == -1:
-            markLast = 'o' if ratioPos > ratioLast else 'x'
+            markPos = '|'
+            markLast = '$' if positionPrice > closeHigh else  'o' if ratioPos > ratioLast else 'x'
 
         line = '-' * size
         line = insertChar(line, markPos, posPos)
-        if overload == 0:
-            line = '[' + insertChar(line, markLast, posLast) + ']'
-        elif overload == 1:
-            line = '[' + line + ']' + markLast
-        elif overload == -1:
-            line = markLast + '[' + line + ']'
-        
+        line = insertChar(line, markLast, posLast)
+        line = insertChar(line, '[', posLow)
+        line = insertChar(line, ']', posHigh)
+    
         line = '{} {} {}'.format(closeLow, line, closeHigh)
 
         return line
@@ -719,6 +722,8 @@ class ChannelBreakOut:
         message = "Starting for channelbreak."
         logging.info(message)
         self.lineNotify(message)
+
+        # パラメータ情報をlineで
 
         exeTimer1 = 0
         exeTimer5 = 0
